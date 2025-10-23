@@ -1,0 +1,149 @@
+.dashboard {
+  padding: 30px 0;
+}
+
+.dashboard-header {
+  margin-bottom: 30px;
+}
+
+.dashboard-header h1 {
+  color: #1e293b;
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dashboard-header p {
+  color: #0e4ac2;
+  font-size: 16px;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: transform 0.3s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+}
+
+.card-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.card-icon.drugs {
+  background: linear-gradient(135deg, #1e88e5, #64b5f6);
+}
+
+.card-icon.sales {
+  background: linear-gradient(135deg, #43a047, #66bb6a);
+}
+
+.card-icon.alert {
+  background: linear-gradient(135deg, #ffb300, #ffca28);
+}
+
+.card-icon.expired {
+  background: linear-gradient(135deg, #e53935, #ef5350);
+}
+
+.card-content h3 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #f8f8f8;
+  margin-bottom: 4px;
+}
+
+.card-content p {
+  color: #feffff;
+  font-size: 14px;
+}
+
+.dashboard-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+.alerts-section h2,
+.quick-actions h2 {
+  color: #1e293b;
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.alert-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border-left: 4px solid;
+}
+
+.alert-item.low-stock {
+  background-color: #fffbeb;
+  border-left-color: #f59e0b;
+}
+
+.alert-item.expiry {
+  background-color: #fef2f2;
+  border-left-color: #ef4444;
+}
+
+.alert-icon {
+  font-size: 20px;
+}
+
+.alert-content p {
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.alert-drug {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-buttons .btn {
+  width: 100%;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+}
