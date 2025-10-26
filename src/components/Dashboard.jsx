@@ -8,6 +8,9 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // ✅ Use environment variable or fallback to production backend
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pharmacy-backend-qrb8.onrender.com';
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -15,7 +18,7 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/dashboard', {
+      const response = await fetch(`${API_BASE_URL}/api/dashboard`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
