@@ -14,13 +14,16 @@ const Login = ({ onLogin }) => {
     phone: ''
   });
 
-  // ✅ Use the correct backend URL dynamically
+  // ✅ Backend base URL (Vercel → uses env variable)
   const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.trim() ||
     'https://pharmacy-backend-qrb8.onrender.com';
 
-  console.log('🔗 Using API:', API_BASE_URL);
+  console.log('🔗 Using API Base URL:', API_BASE_URL);
 
+  // ---------------------------
+  // Handle input changes
+  // ---------------------------
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -29,16 +32,21 @@ const Login = ({ onLogin }) => {
     setError('');
   };
 
+  // ---------------------------
+  // Submit form (Login / Register)
+  // ---------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
+      // Define endpoint
       const endpoint = isLogin
         ? `${API_BASE_URL}/api/auth/login`
         : `${API_BASE_URL}/api/auth/register`;
 
+      // Prepare request data
       const payload = isLogin
         ? {
             username: formData.username,
@@ -52,7 +60,7 @@ const Login = ({ onLogin }) => {
             phone: formData.phone
           };
 
-      // Simple form validations
+      // Simple validation
       if (!formData.username || !formData.password) {
         setError('Please enter your username and password');
         setLoading(false);
@@ -65,6 +73,7 @@ const Login = ({ onLogin }) => {
         return;
       }
 
+      // Send request to backend
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,13 +91,16 @@ const Login = ({ onLogin }) => {
         setError(data.message || 'Something went wrong. Please try again.');
       }
     } catch (error) {
-      console.error('❌ Auth error:', error);
-      setError('Network error. Please check your connection.');
+      console.error('❌ Network/Auth error:', error);
+      setError('Network error. Please check your connection or try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------------------------
+  // Switch between Login/Register
+  // ---------------------------
   const switchMode = () => {
     setIsLogin(!isLogin);
     setFormData({
@@ -102,6 +114,9 @@ const Login = ({ onLogin }) => {
     setError('');
   };
 
+  // ---------------------------
+  // JSX
+  // ---------------------------
   return (
     <div className="login-page">
       <div className="login-container">
@@ -211,7 +226,11 @@ const Login = ({ onLogin }) => {
               className={`btn btn-primary login-btn ${loading ? 'loading' : ''}`}
               disabled={loading}
             >
-              {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
+              {loading
+                ? 'Please wait...'
+                : isLogin
+                ? 'Sign In'
+                : 'Create Account'}
             </button>
           </form>
 
@@ -225,7 +244,7 @@ const Login = ({ onLogin }) => {
           </div>
 
           <div className="login-footer">
-            <p>Pharmacy Management System © 2024</p>
+            <p>Pharmacy Management System © 2025</p>
           </div>
         </div>
       </div>
@@ -234,4 +253,3 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
-
