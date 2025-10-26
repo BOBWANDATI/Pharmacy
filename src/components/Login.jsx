@@ -14,12 +14,16 @@ const Login = ({ onLogin }) => {
     phone: ''
   });
 
+  // ✅ Use environment variable (works in both dev & production)
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
-    setError(''); // Clear error when user starts typing
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -29,65 +33,62 @@ const Login = ({ onLogin }) => {
 
     try {
       if (isLogin) {
-        // Login logic
+        // ✅ LOGIN
         if (!formData.username || !formData.password) {
           setError('Please enter both username and password');
           setLoading(false);
           return;
         }
 
-        const response = await fetch('https://pharmacy-backend-qrb8.onrender.com/api/auth/login', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: formData.username,
             password: formData.password
-          }),
+          })
         });
 
         const data = await response.json();
+        console.log('Login response:', data);
 
         if (response.ok) {
-          // Store token and user data
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data));
           onLogin(data);
         } else {
-          setError(data.message || 'Login failed');
+          setError(data.message || 'Login failed. Please check your credentials.');
         }
       } else {
-        // Registration logic
+        // ✅ REGISTER
         if (formData.password !== formData.confirmPassword) {
           setError('Passwords do not match!');
           setLoading(false);
           return;
         }
+
         if (!formData.username || !formData.email || !formData.password || !formData.pharmacyName) {
           setError('Please fill in all required fields');
           setLoading(false);
           return;
         }
 
-        const response = await fetch('http://localhost:5000/api/auth/register', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: formData.username,
             email: formData.email,
             password: formData.password,
             pharmacyName: formData.pharmacyName,
             phone: formData.phone
-          }),
+          })
         });
 
         const data = await response.json();
+        console.log('Register response:', data);
 
         if (response.ok) {
-          // Store token and user data
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data));
           onLogin(data);
@@ -96,8 +97,8 @@ const Login = ({ onLogin }) => {
         }
       }
     } catch (error) {
-      setError('Network error. Please try again.');
       console.error('Auth error:', error);
+      setError('Network error. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -126,18 +127,13 @@ const Login = ({ onLogin }) => {
             </div>
             <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
             <p>
-              {isLogin 
-                ? 'Sign in to your pharmacy management system' 
-                : 'Register your pharmacy to get started'
-              }
+              {isLogin
+                ? 'Sign in to your pharmacy management system'
+                : 'Register your pharmacy to get started'}
             </p>
           </div>
 
-          {error && (
-            <div className="alert alert-error">
-              {error}
-            </div>
-          )}
+          {error && <div className="alert alert-error">{error}</div>}
 
           <form onSubmit={handleSubmit} className="login-form">
             {!isLogin && (
@@ -225,32 +221,23 @@ const Login = ({ onLogin }) => {
               </>
             )}
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className={`btn btn-primary login-btn ${loading ? 'loading' : ''}`}
               disabled={loading}
             >
-              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+              {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
             </button>
           </form>
 
           <div className="auth-switch">
             <p>
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
               <button type="button" className="switch-btn" onClick={switchMode}>
                 {isLogin ? 'Register here' : 'Sign in here'}
               </button>
             </p>
           </div>
-
-          {isLogin && (
-            <div className="login-demo">
-              <p>
-                <strong>Demo Credentials:</strong><br />
-                Use any valid credentials from your database
-              </p>
-            </div>
-          )}
 
           <div className="login-footer">
             <p>Pharmacy Management System © 2024</p>
