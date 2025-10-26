@@ -22,8 +22,8 @@ const Drugs = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showLowStock, setShowLowStock] = useState(false);
 
-  // ✅ Use environment variable (for Vercel + Local Dev)
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  // ✅ Use same environment setup as Dashboard
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pharmacy-backend-qrb8.onrender.com';
 
   useEffect(() => {
     fetchDrugs();
@@ -183,9 +183,7 @@ const Drugs = () => {
     return 'normal';
   };
 
-  const isExpired = (expiryDate) => {
-    return new Date(expiryDate) < new Date();
-  };
+  const isExpired = (expiryDate) => new Date(expiryDate) < new Date();
 
   const getTotalInventoryValue = () =>
     drugs.reduce((total, drug) => total + drug.quantity * drug.price, 0);
@@ -218,60 +216,33 @@ const Drugs = () => {
             <p>Manage your pharmacy drug stock and inventory</p>
           </div>
           <button className="btn btn-primary" onClick={handleAddDrug}>
-            <span className="btn-icon">+</span>
-            Add New Drug
+            <span className="btn-icon">+</span> Add New Drug
           </button>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="inventory-summary">
-          <div className="summary-card">
-            <div className="summary-icon"><span>💊</span></div>
-            <div className="summary-content">
-              <h3>{drugs.length}</h3>
-              <p>Total Drugs</p>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="summary-icon"><span>💰</span></div>
-            <div className="summary-content">
-              <h3>KSh {getTotalInventoryValue().toLocaleString()}</h3>
-              <p>Inventory Value</p>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="summary-icon"><span>⚠️</span></div>
-            <div className="summary-content">
-              <h3>{getLowStockCount()}</h3>
-              <p>Low Stock</p>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="summary-icon"><span>🚫</span></div>
-            <div className="summary-content">
-              <h3>{getExpiredCount()}</h3>
-              <p>Expired</p>
-            </div>
-          </div>
+          <div className="summary-card"><span>💊</span><h3>{drugs.length}</h3><p>Total Drugs</p></div>
+          <div className="summary-card"><span>💰</span><h3>KSh {getTotalInventoryValue().toLocaleString()}</h3><p>Inventory Value</p></div>
+          <div className="summary-card"><span>⚠️</span><h3>{getLowStockCount()}</h3><p>Low Stock</p></div>
+          <div className="summary-card"><span>🚫</span><h3>{getExpiredCount()}</h3><p>Expired</p></div>
         </div>
 
         {/* Filters */}
         <div className="filters-card card">
           <div className="filters">
-            <div className="search-box">
-              <input
-                type="text"
-                placeholder="Search drugs by name, batch, or supplier..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="form-input"
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="Search drugs by name, batch, or supplier..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="form-input"
+            />
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="form-input category-filter"
+              className="form-input"
             >
               <option value="">All Categories</option>
               {categories.map((category) => (
@@ -280,24 +251,63 @@ const Drugs = () => {
                 </option>
               ))}
             </select>
-            <label className="filter-checkbox">
+            <label>
               <input
                 type="checkbox"
                 checked={showLowStock}
                 onChange={(e) => setShowLowStock(e.target.checked)}
               />
-              <span>Show Low Stock Only</span>
+              Show Low Stock Only
             </label>
           </div>
           <div className="drugs-count">
-            <span>
-              {filteredDrugs.length} of {drugs.length} drugs
-            </span>
+            <span>{filteredDrugs.length} of {drugs.length} drugs</span>
           </div>
         </div>
 
-        {/* Table and Modal code remain the same */}
-        {/* (omitted for brevity since it's unchanged) */}
+        {/* ✅ Drug Table */}
+        <div className="drugs-table card">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Batch</th>
+                <th>Category</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Expiry</th>
+                <th>Supplier</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDrugs.length > 0 ? (
+                filteredDrugs.map((drug) => (
+                  <tr
+                    key={drug._id}
+                    className={`${getStockStatus(drug.quantity, drug.minStockLevel)} ${isExpired(drug.expiryDate) ? 'expired' : ''}`}
+                  >
+                    <td>{drug.name}</td>
+                    <td>{drug.batchNo}</td>
+                    <td>{drug.category}</td>
+                    <td>{drug.quantity}</td>
+                    <td>KSh {drug.price}</td>
+                    <td>{new Date(drug.expiryDate).toLocaleDateString()}</td>
+                    <td>{drug.supplier}</td>
+                    <td>
+                      <button className="btn-edit" onClick={() => handleEditDrug(drug)}>✏️</button>
+                      <button className="btn-delete" onClick={() => handleDeleteDrug(drug._id)}>🗑️</button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center' }}>No drugs found</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
