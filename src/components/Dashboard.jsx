@@ -9,7 +9,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   // ✅ Use environment variable or fallback to production backend
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pharmacy-backend-qrb8.onrender.com';
+  //const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pharmacy-backend-qrb8.onrender.com';
+  // ✅ Correct version for Vite
+   const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pharmacy-backend-qrb8.onrender.com';
+
 
   useEffect(() => {
     fetchDashboardData();
