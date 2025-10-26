@@ -14,9 +14,12 @@ const Login = ({ onLogin }) => {
     phone: ''
   });
 
-  // ✅ Use environment variable (works in both dev & production)
+  // ✅ Use the correct backend URL dynamically
   const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    process.env.NEXT_PUBLIC_API_URL?.trim() ||
+    'https://pharmacy-backend-qrb8.onrender.com';
+
+  console.log('🔗 Using API:', API_BASE_URL);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -32,73 +35,55 @@ const Login = ({ onLogin }) => {
     setError('');
 
     try {
-      if (isLogin) {
-        // ✅ LOGIN
-        if (!formData.username || !formData.password) {
-          setError('Please enter both username and password');
-          setLoading(false);
-          return;
-        }
+      const endpoint = isLogin
+        ? `${API_BASE_URL}/api/auth/login`
+        : `${API_BASE_URL}/api/auth/register`;
 
-        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+      const payload = isLogin
+        ? {
             username: formData.username,
             password: formData.password
-          })
-        });
-
-        const data = await response.json();
-        console.log('Login response:', data);
-
-        if (response.ok) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data));
-          onLogin(data);
-        } else {
-          setError(data.message || 'Login failed. Please check your credentials.');
-        }
-      } else {
-        // ✅ REGISTER
-        if (formData.password !== formData.confirmPassword) {
-          setError('Passwords do not match!');
-          setLoading(false);
-          return;
-        }
-
-        if (!formData.username || !formData.email || !formData.password || !formData.pharmacyName) {
-          setError('Please fill in all required fields');
-          setLoading(false);
-          return;
-        }
-
-        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          }
+        : {
             username: formData.username,
             email: formData.email,
             password: formData.password,
             pharmacyName: formData.pharmacyName,
             phone: formData.phone
-          })
-        });
+          };
 
-        const data = await response.json();
-        console.log('Register response:', data);
+      // Simple form validations
+      if (!formData.username || !formData.password) {
+        setError('Please enter your username and password');
+        setLoading(false);
+        return;
+      }
 
-        if (response.ok) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data));
-          onLogin(data);
-        } else {
-          setError(data.message || 'Registration failed');
-        }
+      if (!isLogin && formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match!');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      console.log('✅ API Response:', data);
+
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data));
+        onLogin(data);
+      } else {
+        setError(data.message || 'Something went wrong. Please try again.');
       }
     } catch (error) {
-      console.error('Auth error:', error);
-      setError('Network error. Please try again later.');
+      console.error('❌ Auth error:', error);
+      setError('Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -146,7 +131,7 @@ const Login = ({ onLogin }) => {
                   value={formData.pharmacyName}
                   onChange={handleInputChange}
                   placeholder="Enter your pharmacy name"
-                  required={!isLogin}
+                  required
                 />
               </div>
             )}
@@ -174,7 +159,7 @@ const Login = ({ onLogin }) => {
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="Enter your email"
-                  required={!isLogin}
+                  required
                 />
               </div>
             )}
@@ -203,7 +188,7 @@ const Login = ({ onLogin }) => {
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     placeholder="Confirm your password"
-                    required={!isLogin}
+                    required
                   />
                 </div>
 
@@ -249,3 +234,4 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
+
