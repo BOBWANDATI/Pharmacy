@@ -16,42 +16,42 @@ const Drugs = () => {
     costPrice: '',
     expiryDate: '',
     supplier: '',
-    minStockLevel: '10'
+    minStockLevel: '10',
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showLowStock, setShowLowStock] = useState(false);
 
-  // ✅ Use same environment setup as Dashboard
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pharmacy-backend-qrb8.onrender.com';
+  // ✅ Ensure we use the deployed backend or fallback locally for development
+  const API_BASE_URL =
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.NEXT_PUBLIC_API_URL ||
+    'https://pharmacy-backend-qrb8.onrender.com';
 
   useEffect(() => {
     fetchDrugs();
   }, []);
 
+  // ✅ Fetch all drugs
   const fetchDrugs = async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/drugs`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setDrugs(data.drugs || data);
-      } else {
-        setError('Failed to load drugs');
-      }
-    } catch (error) {
-      setError('Network error loading drugs');
-      console.error('Drugs error:', error);
+      if (!response.ok) throw new Error('Failed to fetch drugs');
+      const data = await response.json();
+      setDrugs(data.drugs || data);
+    } catch (err) {
+      console.error('❌ Drug fetch error:', err);
+      setError('Failed to load drugs from backend');
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Add new drug
   const handleAddDrug = () => {
     setEditingDrug(null);
     setFormData({
@@ -63,11 +63,12 @@ const Drugs = () => {
       costPrice: '',
       expiryDate: '',
       supplier: '',
-      minStockLevel: '10'
+      minStockLevel: '10',
     });
     setShowModal(true);
   };
 
+  // ✅ Edit existing drug
   const handleEditDrug = (drug) => {
     setEditingDrug(drug);
     setFormData({
@@ -79,45 +80,38 @@ const Drugs = () => {
       costPrice: drug.costPrice?.toString() || drug.price.toString(),
       expiryDate: drug.expiryDate.split('T')[0],
       supplier: drug.supplier,
-      minStockLevel: drug.minStockLevel?.toString() || '10'
+      minStockLevel: drug.minStockLevel?.toString() || '10',
     });
     setShowModal(true);
   };
 
+  // ✅ Delete drug
   const handleDeleteDrug = async (id) => {
-    if (window.confirm('Are you sure you want to delete this drug?')) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/api/drugs/${id}`, {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    if (!window.confirm('Are you sure you want to delete this drug?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/drugs/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        if (response.ok) {
-          setDrugs(drugs.filter((drug) => drug._id !== id));
-        } else {
-          const errorData = await response.json();
-          alert(errorData.message || 'Failed to delete drug');
-        }
-      } catch (error) {
-        alert('Network error deleting drug');
-        console.error('Delete drug error:', error);
-      }
+      if (!response.ok) throw new Error('Failed to delete drug');
+      setDrugs(drugs.filter((drug) => drug._id !== id));
+    } catch (err) {
+      console.error('❌ Delete error:', err);
+      alert('Error deleting drug');
     }
   };
 
+  // ✅ Create or update drug
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const token = localStorage.getItem('token');
       const url = editingDrug
         ? `${API_BASE_URL}/api/drugs/${editingDrug._id}`
         : `${API_BASE_URL}/api/drugs`;
-
       const method = editingDrug ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -135,88 +129,68 @@ const Drugs = () => {
         }),
       });
 
-      if (response.ok) {
-        const updatedDrug = await response.json();
-        if (editingDrug) {
-          setDrugs(drugs.map((d) => (d._id === editingDrug._id ? updatedDrug : d)));
-        } else {
-          setDrugs([updatedDrug, ...drugs]);
-        }
-        setShowModal(false);
-        setError('');
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to save drug');
-      }
-    } catch (error) {
-      setError('Network error saving drug');
-      console.error('Save drug error:', error);
+      if (!response.ok) throw new Error('Failed to save drug');
+      const savedDrug = await response.json();
+
+      setDrugs((prev) =>
+        editingDrug
+          ? prev.map((d) => (d._id === editingDrug._id ? savedDrug : d))
+          : [savedDrug, ...prev]
+      );
+      setShowModal(false);
+      setError('');
+    } catch (err) {
+      console.error('❌ Save error:', err);
+      setError('Error saving drug');
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Controlled form inputs
   const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const categories = [...new Set(drugs.map((drug) => drug.category))];
-
-  const filteredDrugs = drugs.filter((drug) => {
-    const matchesSearch =
-      drug.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      drug.batchNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      drug.supplier.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || drug.category === selectedCategory;
-    const matchesLowStock = !showLowStock || drug.quantity <= (drug.minStockLevel || 10);
-
-    return matchesSearch && matchesCategory && matchesLowStock;
+  // ✅ Filters
+  const categories = [...new Set(drugs.map((d) => d.category))];
+  const filteredDrugs = drugs.filter((d) => {
+    const matchSearch =
+      d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      d.batchNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      d.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchCategory = !selectedCategory || d.category === selectedCategory;
+    const matchLowStock = !showLowStock || d.quantity <= (d.minStockLevel || 10);
+    return matchSearch && matchCategory && matchLowStock;
   });
 
-  const getStockStatus = (quantity, minStockLevel = 10) => {
-    if (quantity === 0) return 'out-of-stock';
-    if (quantity <= minStockLevel) return 'low-stock';
-    if (quantity <= minStockLevel * 2) return 'warning';
-    return 'normal';
-  };
+  // ✅ Helpers
+  const getStockStatus = (q, min = 10) =>
+    q === 0 ? 'out-of-stock' : q <= min ? 'low-stock' : q <= min * 2 ? 'warning' : 'normal';
+  const isExpired = (date) => new Date(date) < new Date();
+  const getTotalValue = () => drugs.reduce((t, d) => t + d.quantity * d.price, 0);
+  const getLowStockCount = () => drugs.filter((d) => d.quantity <= (d.minStockLevel || 10)).length;
+  const getExpiredCount = () => drugs.filter((d) => isExpired(d.expiryDate)).length;
 
-  const isExpired = (expiryDate) => new Date(expiryDate) < new Date();
-
-  const getTotalInventoryValue = () =>
-    drugs.reduce((total, drug) => total + drug.quantity * drug.price, 0);
-
-  const getLowStockCount = () =>
-    drugs.filter((drug) => drug.quantity <= (drug.minStockLevel || 10)).length;
-
-  const getExpiredCount = () =>
-    drugs.filter((drug) => isExpired(drug.expiryDate)).length;
-
-  if (loading && drugs.length === 0) {
+  // ✅ UI
+  if (loading && drugs.length === 0)
     return (
-      <div className="drugs">
-        <div className="container">
-          <div className="loading-screen">
-            <div className="loading-spinner"></div>
-            <p>Loading drugs inventory...</p>
-          </div>
-        </div>
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Loading drug inventory...</p>
       </div>
     );
-  }
 
   return (
     <div className="drugs">
       <div className="container">
         <div className="drugs-header">
-          <div className="header-content">
+          <div>
             <h1>Drug Inventory</h1>
-            <p>Manage your pharmacy drug stock and inventory</p>
+            <p>Manage your pharmacy drug stock and suppliers</p>
           </div>
           <button className="btn btn-primary" onClick={handleAddDrug}>
-            <span className="btn-icon">+</span> Add New Drug
+            + Add Drug
           </button>
         </div>
 
@@ -224,48 +198,41 @@ const Drugs = () => {
 
         <div className="inventory-summary">
           <div className="summary-card"><span>💊</span><h3>{drugs.length}</h3><p>Total Drugs</p></div>
-          <div className="summary-card"><span>💰</span><h3>KSh {getTotalInventoryValue().toLocaleString()}</h3><p>Inventory Value</p></div>
+          <div className="summary-card"><span>💰</span><h3>KSh {getTotalValue().toLocaleString()}</h3><p>Total Value</p></div>
           <div className="summary-card"><span>⚠️</span><h3>{getLowStockCount()}</h3><p>Low Stock</p></div>
           <div className="summary-card"><span>🚫</span><h3>{getExpiredCount()}</h3><p>Expired</p></div>
         </div>
 
-        {/* Filters */}
         <div className="filters-card card">
-          <div className="filters">
+          <input
+            type="text"
+            placeholder="Search drug by name, batch or supplier..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="form-input"
+          />
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="form-input"
+          >
+            <option value="">All Categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <label>
             <input
-              type="text"
-              placeholder="Search drugs by name, batch, or supplier..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="form-input"
+              type="checkbox"
+              checked={showLowStock}
+              onChange={(e) => setShowLowStock(e.target.checked)}
             />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="form-input"
-            >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            <label>
-              <input
-                type="checkbox"
-                checked={showLowStock}
-                onChange={(e) => setShowLowStock(e.target.checked)}
-              />
-              Show Low Stock Only
-            </label>
-          </div>
-          <div className="drugs-count">
-            <span>{filteredDrugs.length} of {drugs.length} drugs</span>
-          </div>
+            Show Low Stock
+          </label>
         </div>
 
-        {/* ✅ Drug Table */}
         <div className="drugs-table card">
           <table>
             <thead>
@@ -285,7 +252,9 @@ const Drugs = () => {
                 filteredDrugs.map((drug) => (
                   <tr
                     key={drug._id}
-                    className={`${getStockStatus(drug.quantity, drug.minStockLevel)} ${isExpired(drug.expiryDate) ? 'expired' : ''}`}
+                    className={`${getStockStatus(drug.quantity, drug.minStockLevel)} ${
+                      isExpired(drug.expiryDate) ? 'expired' : ''
+                    }`}
                   >
                     <td>{drug.name}</td>
                     <td>{drug.batchNo}</td>
