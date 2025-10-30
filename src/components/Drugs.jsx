@@ -29,7 +29,7 @@ const Drugs = () => {
   const fetchDrugs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/drugs', {
+      const response = await fetch('https://pharmacy-backend-qrb8.onrender.com/api/drugs', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
