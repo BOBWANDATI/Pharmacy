@@ -31,21 +31,39 @@ const Drugs = () => {
   const fetchDrugs = async () => {
     try {
       const token = localStorage.getItem('token');
+      console.log('Fetching drugs from:', `${BASE_URL}/drugs`);
+      
       const response = await fetch(`${BASE_URL}/drugs`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        setDrugs(data.drugs || data);
+        console.log('Drugs data received:', data);
+        
+        // Handle different response structures
+        if (data.drugs) {
+          setDrugs(data.drugs);
+        } else if (Array.isArray(data)) {
+          setDrugs(data);
+        } else if (data.data && Array.isArray(data.data)) {
+          setDrugs(data.data);
+        } else {
+          setDrugs([]);
+        }
       } else {
-        setError('Failed to load drugs');
+        const errorText = await response.text();
+        console.error('Failed to load drugs:', response.status, errorText);
+        setError(`Failed to load drugs: ${response.status} ${errorText}`);
       }
     } catch (error) {
-      setError('Network error loading drugs');
-      console.error('Drugs error:', error);
+      console.error('Network error loading drugs:', error);
+      setError('Network error loading drugs. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -70,14 +88,14 @@ const Drugs = () => {
   const handleEditDrug = (drug) => {
     setEditingDrug(drug);
     setFormData({
-      name: drug.name,
-      category: drug.category,
-      batchNo: drug.batchNo,
-      quantity: drug.quantity.toString(),
-      price: drug.price.toString(),
-      costPrice: drug.costPrice?.toString() || drug.price.toString(),
-      expiryDate: drug.expiryDate.split('T')[0],
-      supplier: drug.supplier,
+      name: drug.name || '',
+      category: drug.category || '',
+      batchNo: drug.batchNo || '',
+      quantity: drug.quantity?.toString() || '',
+      price: drug.price?.toString() || '',
+      costPrice: drug.costPrice?.toString() || drug.price?.toString() || '',
+      expiryDate: drug.expiryDate ? drug.expiryDate.split('T')[0] : '',
+      supplier: drug.supplier || '',
       minStockLevel: drug.minStockLevel?.toString() || '10'
     });
     setShowModal(true);
@@ -87,22 +105,26 @@ const Drugs = () => {
     if (window.confirm('Are you sure you want to delete this drug? This action cannot be undone.')) {
       try {
         const token = localStorage.getItem('token');
+        console.log('Deleting drug:', `${BASE_URL}/drugs/${id}`);
+        
         const response = await fetch(`${BASE_URL}/drugs/${id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
         });
 
         if (response.ok) {
           setDrugs(drugs.filter(drug => drug._id !== id));
+          alert('Drug deleted successfully');
         } else {
           const errorData = await response.json();
-          alert(errorData.message || 'Failed to delete drug');
+          alert(errorData.message || `Failed to delete drug: ${response.status}`);
         }
       } catch (error) {
-        alert('Network error deleting drug');
         console.error('Delete drug error:', error);
+        alert('Network error deleting drug');
       }
     }
   };
@@ -110,6 +132,7 @@ const Drugs = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
     try {
       const token = localStorage.getItem('token');
@@ -119,37 +142,56 @@ const Drugs = () => {
       
       const method = editingDrug ? 'PUT' : 'POST';
 
+      console.log('Submitting drug data:', formData);
+
+      const requestBody = {
+        name: formData.name,
+        category: formData.category,
+        batchNo: formData.batchNo,
+        quantity: parseInt(formData.quantity) || 0,
+        price: parseFloat(formData.price) || 0,
+        costPrice: parseFloat(formData.costPrice) || parseFloat(formData.price) || 0,
+        expiryDate: formData.expiryDate,
+        supplier: formData.supplier,
+        minStockLevel: parseInt(formData.minStockLevel) || 10
+      };
+
+      console.log('Sending request to:', url, 'with method:', method);
+      console.log('Request body:', requestBody);
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          ...formData,
-          quantity: parseInt(formData.quantity),
-          price: parseFloat(formData.price),
-          costPrice: parseFloat(formData.costPrice),
-          minStockLevel: parseInt(formData.minStockLevel)
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('Response status:', response.status);
+
       if (response.ok) {
-        const updatedDrug = await response.json();
+        const result = await response.json();
+        console.log('Save drug result:', result);
+        
+        // Handle different response structures
+        const updatedDrug = result.drug || result.data || result;
+        
         if (editingDrug) {
           setDrugs(drugs.map(drug => drug._id === editingDrug._id ? updatedDrug : drug));
         } else {
           setDrugs([updatedDrug, ...drugs]);
         }
         setShowModal(false);
-        setError('');
+        alert(editingDrug ? 'Drug updated successfully!' : 'Drug added successfully!');
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Failed to save drug');
+        console.error('Save drug error response:', errorData);
+        setError(errorData.message || `Failed to save drug: ${response.status}`);
       }
     } catch (error) {
-      setError('Network error saving drug');
       console.error('Save drug error:', error);
+      setError('Network error saving drug. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -162,12 +204,14 @@ const Drugs = () => {
     });
   };
 
-  const categories = [...new Set(drugs.map(drug => drug.category))];
+  const categories = [...new Set(drugs.map(drug => drug.category).filter(Boolean))];
 
   const filteredDrugs = drugs.filter(drug => {
-    const matchesSearch = drug.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         drug.batchNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         drug.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      (drug.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (drug.batchNo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (drug.supplier?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    
     const matchesCategory = !selectedCategory || drug.category === selectedCategory;
     const matchesLowStock = !showLowStock || drug.quantity <= (drug.minStockLevel || 10);
     
@@ -182,15 +226,16 @@ const Drugs = () => {
   };
 
   const isExpired = (expiryDate) => {
+    if (!expiryDate) return false;
     return new Date(expiryDate) < new Date();
   };
 
   const getTotalInventoryValue = () => {
-    return drugs.reduce((total, drug) => total + (drug.quantity * drug.price), 0);
+    return drugs.reduce((total, drug) => total + ((drug.quantity || 0) * (drug.price || 0)), 0);
   };
 
   const getLowStockCount = () => {
-    return drugs.filter(drug => drug.quantity <= (drug.minStockLevel || 10)).length;
+    return drugs.filter(drug => (drug.quantity || 0) <= (drug.minStockLevel || 10)).length;
   };
 
   const getExpiredCount = () => {
@@ -227,6 +272,7 @@ const Drugs = () => {
         {error && (
           <div className="alert alert-error">
             {error}
+            <button className="alert-close" onClick={() => setError('')}>×</button>
           </div>
         )}
 
@@ -330,27 +376,27 @@ const Drugs = () => {
                     <tr key={drug._id} className={expired ? 'expired-row' : ''}>
                       <td>
                         <div className="drug-name">
-                          <strong>{drug.name}</strong>
+                          <strong>{drug.name || 'N/A'}</strong>
                           {expired && <span className="expired-badge">Expired</span>}
                         </div>
                       </td>
                       <td>
-                        <span className="category-tag">{drug.category}</span>
+                        <span className="category-tag">{drug.category || 'Uncategorized'}</span>
                       </td>
-                      <td className="batch-number">{drug.batchNo}</td>
+                      <td className="batch-number">{drug.batchNo || 'N/A'}</td>
                       <td>
                         <span className={`quantity ${stockStatus}`}>
-                          {drug.quantity}
+                          {drug.quantity || 0}
                         </span>
                       </td>
-                      <td className="price">{drug.price.toLocaleString()}</td>
-                      <td className="cost">{drug.costPrice?.toLocaleString() || drug.price.toLocaleString()}</td>
+                      <td className="price">{(drug.price || 0).toLocaleString()}</td>
+                      <td className="cost">{(drug.costPrice || drug.price || 0).toLocaleString()}</td>
                       <td>
                         <span className={expired ? 'expired-date' : 'expiry-date'}>
-                          {new Date(drug.expiryDate).toLocaleDateString()}
+                          {drug.expiryDate ? new Date(drug.expiryDate).toLocaleDateString() : 'N/A'}
                         </span>
                       </td>
-                      <td className="supplier">{drug.supplier}</td>
+                      <td className="supplier">{drug.supplier || 'N/A'}</td>
                       <td>
                         <span className={`status-badge ${stockStatus}`}>
                           {stockStatus === 'out-of-stock' ? 'Out of Stock' :
@@ -416,6 +462,12 @@ const Drugs = () => {
               </div>
               
               <form onSubmit={handleSubmit}>
+                {error && (
+                  <div className="alert alert-error">
+                    {error}
+                  </div>
+                )}
+                
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Drug Name *</label>
