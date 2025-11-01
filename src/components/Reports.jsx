@@ -9,25 +9,28 @@ const Reports = () => {
   const [stockData, setStockData] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
 
-  // ✅ Use environment variable for both local + deployed
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://localhost:5000/api';
 
   useEffect(() => {
-    if (activeReport === 'sales') fetchSalesReport();
-    else if (activeReport === 'stock') fetchStockReport();
-    else if (activeReport === 'analytics') fetchAnalytics();
+    if (activeReport === 'sales') {
+      fetchSalesReport();
+    } else if (activeReport === 'stock') {
+      fetchStockReport();
+    } else if (activeReport === 'analytics') {
+      fetchAnalytics();
+    }
   }, [activeReport, period]);
 
-  // ---------------------------
-  // ✅ Fetch Sales Report
-  // ---------------------------
   const fetchSalesReport = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/reports/sales?period=${period}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
+
       if (response.ok) {
         const data = await response.json();
         setSalesData(data.report);
@@ -41,16 +44,16 @@ const Reports = () => {
     }
   };
 
-  // ---------------------------
-  // ✅ Fetch Stock Report
-  // ---------------------------
   const fetchStockReport = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/reports/stock`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
+
       if (response.ok) {
         const data = await response.json();
         setStockData(data.report);
@@ -64,16 +67,16 @@ const Reports = () => {
     }
   };
 
-  // ---------------------------
-  // ✅ Fetch Analytics
-  // ---------------------------
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/reports/analytics?period=${period}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
+
       if (response.ok) {
         const data = await response.json();
         setAnalyticsData(data.analytics);
@@ -87,9 +90,6 @@ const Reports = () => {
     }
   };
 
-  // ---------------------------
-  // ✅ Export Report (PDF/Excel)
-  // ---------------------------
   const handleExport = async (format) => {
     try {
       const token = localStorage.getItem('token');
@@ -97,18 +97,19 @@ const Reports = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           reportType: activeReport,
           format,
-          period,
+          period
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        alert(data.message || `Report exported as ${format.toUpperCase()}`);
+        alert(`${data.message}`);
+        // In real implementation, you would trigger download
       } else {
         alert('Failed to export report');
       }
@@ -118,13 +119,8 @@ const Reports = () => {
     }
   };
 
-  // ---------------------------
-  // ✅ Render Charts
-  // ---------------------------
   const renderSalesChart = () => {
     if (!salesData?.dailyTrend) return null;
-
-    const maxRevenue = Math.max(...salesData.dailyTrend.map((d) => d.totalRevenue || 0));
 
     return (
       <div className="chart-container">
@@ -132,9 +128,9 @@ const Reports = () => {
         <div className="chart">
           {salesData.dailyTrend.map((day, index) => (
             <div key={index} className="chart-bar">
-              <div
-                className="bar"
-                style={{ height: `${(day.totalRevenue / maxRevenue) * 100}%` }}
+              <div 
+                className="bar" 
+                style={{ height: `${(day.totalRevenue / Math.max(...salesData.dailyTrend.map(d => d.totalRevenue))) * 100}%` }}
                 title={`${new Date(day.date).toLocaleDateString()}: KSh ${day.totalRevenue.toLocaleString()}`}
               ></div>
               <span className="bar-label">
@@ -150,8 +146,6 @@ const Reports = () => {
   const renderAnalyticsCharts = () => {
     if (!analyticsData) return null;
 
-    const maxRevenue = Math.max(...analyticsData.topDrugs.map((d) => d.totalRevenue || 0));
-
     return (
       <div className="analytics-charts">
         <div className="chart-section">
@@ -159,11 +153,13 @@ const Reports = () => {
           <div className="chart">
             {analyticsData.salesTrend.map((day, index) => (
               <div key={index} className="chart-bar">
-                <div
-                  className="bar"
+                <div 
+                  className="bar" 
                   style={{ height: `${(day.totalRevenue / Math.max(...analyticsData.salesTrend.map(d => d.totalRevenue || 1))) * 100}%` }}
                 ></div>
-                <span className="bar-label">{new Date(day.date).getDate()}</span>
+                <span className="bar-label">
+                  {new Date(day.date).getDate()}
+                </span>
               </div>
             ))}
           </div>
@@ -176,9 +172,9 @@ const Reports = () => {
               <div key={index} className="horizontal-bar">
                 <div className="drug-name">{drug._id}</div>
                 <div className="bar-container">
-                  <div
+                  <div 
                     className="bar horizontal"
-                    style={{ width: `${(drug.totalRevenue / maxRevenue) * 100}%` }}
+                    style={{ width: `${(drug.totalRevenue / Math.max(...analyticsData.topDrugs.map(d => d.totalRevenue))) * 100}%` }}
                   ></div>
                 </div>
                 <div className="bar-value">KSh {drug.totalRevenue.toLocaleString()}</div>
@@ -190,9 +186,6 @@ const Reports = () => {
     );
   };
 
-  // ---------------------------
-  // ✅ Loading State
-  // ---------------------------
   if (loading) {
     return (
       <div className="reports">
@@ -206,9 +199,6 @@ const Reports = () => {
     );
   }
 
-  // ---------------------------
-  // ✅ Main Render
-  // ---------------------------
   return (
     <div className="reports">
       <div className="container">
@@ -217,18 +207,26 @@ const Reports = () => {
           <p>Generate and export detailed reports for your pharmacy</p>
         </div>
 
-        {/* Report Tabs */}
         <div className="reports-controls">
           <div className="reports-tabs">
-            {['sales', 'stock', 'analytics'].map((type) => (
-              <button
-                key={type}
-                className={`tab-btn ${activeReport === type ? 'active' : ''}`}
-                onClick={() => setActiveReport(type)}
-              >
-                {type.charAt(0).toUpperCase() + type.slice(1)} Report
-              </button>
-            ))}
+            <button 
+              className={`tab-btn ${activeReport === 'sales' ? 'active' : ''}`}
+              onClick={() => setActiveReport('sales')}
+            >
+              Sales Report
+            </button>
+            <button 
+              className={`tab-btn ${activeReport === 'stock' ? 'active' : ''}`}
+              onClick={() => setActiveReport('stock')}
+            >
+              Stock Report
+            </button>
+            <button 
+              className={`tab-btn ${activeReport === 'analytics' ? 'active' : ''}`}
+              onClick={() => setActiveReport('analytics')}
+            >
+              Analytics
+            </button>
           </div>
 
           {(activeReport === 'sales' || activeReport === 'analytics') && (
@@ -243,55 +241,267 @@ const Reports = () => {
           )}
         </div>
 
-        {/* Render Content */}
         {activeReport === 'sales' && salesData && (
-          <>
+          <div className="report-content">
+            <div className="report-summary">
+              <div className="summary-card">
+                <h3>Total Sales</h3>
+                <p className="amount">{salesData.summary.totalSales}</p>
+                <small>Transactions</small>
+              </div>
+              <div className="summary-card">
+                <h3>Total Revenue</h3>
+                <p className="amount">KSh {salesData.summary.totalRevenue.toLocaleString()}</p>
+                <small>{period.charAt(0).toUpperCase() + period.slice(1)}</small>
+              </div>
+              <div className="summary-card">
+                <h3>Items Sold</h3>
+                <p className="amount">{salesData.summary.totalItems}</p>
+                <small>Total quantity</small>
+              </div>
+              <div className="summary-card">
+                <h3>Average Sale</h3>
+                <p className="amount">KSh {Math.round(salesData.summary.averageSale).toLocaleString()}</p>
+                <small>Per transaction</small>
+              </div>
+            </div>
+
             {renderSalesChart()}
+
+            <div className="report-details">
+              <div className="card">
+                <h2>Top Selling Drugs</h2>
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      <th>Drug Name</th>
+                      <th>Quantity Sold</th>
+                      <th>Revenue (KSh)</th>
+                      <th>Average Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {salesData.topSelling.map((drug, index) => (
+                      <tr key={index}>
+                        <td>{drug.name}</td>
+                        <td>{drug.quantity}</td>
+                        <td>{drug.revenue.toLocaleString()}</td>
+                        <td>{drug.averagePrice.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div className="export-actions">
               <h3>Export Report</h3>
               <div className="export-buttons">
-                <button className="btn btn-primary" onClick={() => handleExport('pdf')}>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => handleExport('pdf')}
+                >
                   Export as PDF
                 </button>
-                <button className="btn btn-secondary" onClick={() => handleExport('excel')}>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => handleExport('excel')}
+                >
                   Export as Excel
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {activeReport === 'stock' && stockData && (
-          <>
+          <div className="report-content">
+            <div className="report-summary">
+              <div className="summary-card">
+                <h3>Total Drugs</h3>
+                <p className="amount">{stockData.summary.totalDrugs}</p>
+              </div>
+              <div className="summary-card">
+                <h3>Inventory Value</h3>
+                <p className="amount">KSh {stockData.summary.totalValue.toLocaleString()}</p>
+              </div>
+              <div className="summary-card">
+                <h3>Low Stock Items</h3>
+                <p className="amount warning">{stockData.summary.lowStock}</p>
+              </div>
+              <div className="summary-card">
+                <h3>Expired Drugs</h3>
+                <p className="amount danger">{stockData.summary.expired}</p>
+              </div>
+            </div>
+
+            <div className="report-details">
+              <div className="card">
+                <h2>Drugs by Category</h2>
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th>Number of Drugs</th>
+                      <th>Total Quantity</th>
+                      <th>Total Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockData.categories.map((category, index) => (
+                      <tr key={index}>
+                        <td>{category._id}</td>
+                        <td>{category.count}</td>
+                        <td>{category.totalQuantity}</td>
+                        <td>KSh {category.totalValue.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="card-grid">
+                <div className="card">
+                  <h3>Low Stock Items</h3>
+                  <div className="alert-list">
+                    {stockData.lowStock.slice(0, 10).map((drug, index) => (
+                      <div key={index} className="alert-item">
+                        <span className="drug-name">{drug.name}</span>
+                        <span className="drug-quantity">{drug.quantity} units</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="card">
+                  <h3>Expired Drugs</h3>
+                  <div className="alert-list">
+                    {stockData.expired.slice(0, 10).map((drug, index) => (
+                      <div key={index} className="alert-item expired">
+                        <span className="drug-name">{drug.name}</span>
+                        <span className="drug-expiry">
+                          {new Date(drug.expiryDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="export-actions">
               <h3>Export Report</h3>
               <div className="export-buttons">
-                <button className="btn btn-primary" onClick={() => handleExport('pdf')}>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => handleExport('pdf')}
+                >
                   Export as PDF
                 </button>
-                <button className="btn btn-secondary" onClick={() => handleExport('excel')}>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => handleExport('excel')}
+                >
                   Export as Excel
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {activeReport === 'analytics' && analyticsData && (
-          <>
+          <div className="report-content">
+            <div className="report-summary">
+              <div className="summary-card">
+                <h3>Total Sales</h3>
+                <p className="amount">{analyticsData.summary.totalPeriodSales}</p>
+                <small>{period} transactions</small>
+              </div>
+              <div className="summary-card">
+                <h3>Total Revenue</h3>
+                <p className="amount">KSh {analyticsData.summary.totalPeriodRevenue.toLocaleString()}</p>
+                <small>{period} revenue</small>
+              </div>
+              <div className="summary-card">
+                <h3>Avg Daily Sales</h3>
+                <p className="amount">KSh {Math.round(analyticsData.summary.averageDailySales).toLocaleString()}</p>
+                <small>Per day average</small>
+              </div>
+              <div className="summary-card">
+                <h3>Unique Customers</h3>
+                <p className="amount">{analyticsData.summary.uniqueCustomers}</p>
+                <small>Returning customers</small>
+              </div>
+            </div>
+
             {renderAnalyticsCharts()}
+
+            <div className="analytics-details">
+              <div className="card">
+                <h2>Top Performing Drugs</h2>
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      <th>Drug Name</th>
+                      <th>Category</th>
+                      <th>Quantity Sold</th>
+                      <th>Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analyticsData.topDrugs.slice(0, 10).map((drug, index) => (
+                      <tr key={index}>
+                        <td>{drug._id}</td>
+                        <td>{drug.category}</td>
+                        <td>{drug.totalSold}</td>
+                        <td>KSh {drug.totalRevenue.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="card">
+                <h2>Payment Method Distribution</h2>
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      <th>Payment Method</th>
+                      <th>Transactions</th>
+                      <th>Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analyticsData.paymentDistribution.map((method, index) => (
+                      <tr key={index}>
+                        <td>{method._id}</td>
+                        <td>{method.count}</td>
+                        <td>KSh {method.revenue.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div className="export-actions">
               <h3>Export Analytics</h3>
               <div className="export-buttons">
-                <button className="btn btn-primary" onClick={() => handleExport('pdf')}>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => handleExport('pdf')}
+                >
                   Export as PDF
                 </button>
-                <button className="btn btn-secondary" onClick={() => handleExport('excel')}>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => handleExport('excel')}
+                >
                   Export as Excel
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
