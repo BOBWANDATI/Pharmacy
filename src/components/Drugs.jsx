@@ -22,53 +22,80 @@ const Drugs = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showLowStock, setShowLowStock] = useState(false);
 
-  const BASE_URL = 'https://pharmacy-backend-qrb8.onrender.com/api';
+  // ✅ Use the same API base URL as Login component
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_URL?.trim() ||
+    'https://pharmacy-backend-qrb8.onrender.com';
 
-  useEffect(() => {
-    fetchDrugs();
-  }, []);
+  console.log('🔗 Drugs - Using API Base URL:', API_BASE_URL);
 
+  // ---------------------------
+  // Fetch drugs from backend
+  // ---------------------------
   const fetchDrugs = async () => {
     try {
-      const token = localStorage.getItem('token');
-      console.log('Fetching drugs from:', `${BASE_URL}/drugs`);
+      setLoading(true);
+      setError('');
       
-      const response = await fetch(`${BASE_URL}/drugs`, {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required. Please login again.');
+        setLoading(false);
+        return;
+      }
+
+      const endpoint = `${API_BASE_URL}/api/drugs`;
+      console.log('📡 Fetching drugs from:', endpoint);
+
+      const response = await fetch(endpoint, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      console.log('Response status:', response.status);
-      
+      console.log('📊 Response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
-        console.log('Drugs data received:', data);
+        console.log('✅ Drugs data received:', data);
         
         // Handle different response structures
-        if (data.drugs) {
+        if (data.drugs && Array.isArray(data.drugs)) {
           setDrugs(data.drugs);
-        } else if (Array.isArray(data)) {
-          setDrugs(data);
         } else if (data.data && Array.isArray(data.data)) {
           setDrugs(data.data);
+        } else if (Array.isArray(data)) {
+          setDrugs(data);
         } else {
+          console.warn('⚠️ Unexpected response structure:', data);
           setDrugs([]);
         }
+      } else if (response.status === 401) {
+        setError('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       } else {
         const errorText = await response.text();
-        console.error('Failed to load drugs:', response.status, errorText);
-        setError(`Failed to load drugs: ${response.status} ${errorText}`);
+        console.error('❌ Failed to load drugs:', response.status, errorText);
+        setError(`Failed to load drugs: ${response.status}`);
       }
     } catch (error) {
-      console.error('Network error loading drugs:', error);
+      console.error('❌ Network error loading drugs:', error);
       setError('Network error loading drugs. Please check your connection.');
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchDrugs();
+  }, []);
+
+  // ---------------------------
+  // Add/Edit Drug Handlers
+  // ---------------------------
   const handleAddDrug = () => {
     setEditingDrug(null);
     setFormData({
@@ -83,6 +110,7 @@ const Drugs = () => {
       minStockLevel: '10'
     });
     setShowModal(true);
+    setError('');
   };
 
   const handleEditDrug = (drug) => {
@@ -99,36 +127,52 @@ const Drugs = () => {
       minStockLevel: drug.minStockLevel?.toString() || '10'
     });
     setShowModal(true);
+    setError('');
   };
 
+  // ---------------------------
+  // Delete Drug
+  // ---------------------------
   const handleDeleteDrug = async (id) => {
-    if (window.confirm('Are you sure you want to delete this drug? This action cannot be undone.')) {
-      try {
-        const token = localStorage.getItem('token');
-        console.log('Deleting drug:', `${BASE_URL}/drugs/${id}`);
-        
-        const response = await fetch(`${BASE_URL}/drugs/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+    if (!window.confirm('Are you sure you want to delete this drug? This action cannot be undone.')) {
+      return;
+    }
 
-        if (response.ok) {
-          setDrugs(drugs.filter(drug => drug._id !== id));
-          alert('Drug deleted successfully');
-        } else {
-          const errorData = await response.json();
-          alert(errorData.message || `Failed to delete drug: ${response.status}`);
-        }
-      } catch (error) {
-        console.error('Delete drug error:', error);
-        alert('Network error deleting drug');
+    try {
+      const token = localStorage.getItem('token');
+      const endpoint = `${API_BASE_URL}/api/drugs/${id}`;
+      
+      console.log('🗑️ Deleting drug:', endpoint);
+
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        console.log('✅ Drug deleted successfully');
+        setDrugs(drugs.filter(drug => drug._id !== id));
+        alert('Drug deleted successfully');
+      } else if (response.status === 401) {
+        setError('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || `Failed to delete drug: ${response.status}`);
       }
+    } catch (error) {
+      console.error('❌ Delete drug error:', error);
+      alert('Network error deleting drug. Please try again.');
     }
   };
 
+  // ---------------------------
+  // Submit Drug Form
+  // ---------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -136,30 +180,43 @@ const Drugs = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const url = editingDrug 
-        ? `${BASE_URL}/drugs/${editingDrug._id}`
-        : `${BASE_URL}/drugs`;
-      
-      const method = editingDrug ? 'PUT' : 'POST';
+      if (!token) {
+        setError('Authentication required. Please login again.');
+        setLoading(false);
+        return;
+      }
 
-      console.log('Submitting drug data:', formData);
+      // Validation
+      if (!formData.name || !formData.category || !formData.batchNo || !formData.quantity || !formData.price) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+
+      const isEditing = !!editingDrug;
+      const endpoint = isEditing 
+        ? `${API_BASE_URL}/api/drugs/${editingDrug._id}`
+        : `${API_BASE_URL}/api/drugs`;
+      
+      const method = isEditing ? 'PUT' : 'POST';
+
+      console.log('📤 Submitting drug data to:', endpoint);
 
       const requestBody = {
-        name: formData.name,
-        category: formData.category,
-        batchNo: formData.batchNo,
+        name: formData.name.trim(),
+        category: formData.category.trim(),
+        batchNo: formData.batchNo.trim(),
         quantity: parseInt(formData.quantity) || 0,
         price: parseFloat(formData.price) || 0,
         costPrice: parseFloat(formData.costPrice) || parseFloat(formData.price) || 0,
         expiryDate: formData.expiryDate,
-        supplier: formData.supplier,
+        supplier: formData.supplier.trim(),
         minStockLevel: parseInt(formData.minStockLevel) || 10
       };
 
-      console.log('Sending request to:', url, 'with method:', method);
-      console.log('Request body:', requestBody);
+      console.log('📦 Request body:', requestBody);
 
-      const response = await fetch(url, {
+      const response = await fetch(endpoint, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -168,35 +225,43 @@ const Drugs = () => {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('Response status:', response.status);
+      console.log('📊 Save response status:', response.status);
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Save drug result:', result);
+        console.log('✅ Save drug result:', result);
         
         // Handle different response structures
-        const updatedDrug = result.drug || result.data || result;
+        const savedDrug = result.drug || result.data || result;
         
-        if (editingDrug) {
-          setDrugs(drugs.map(drug => drug._id === editingDrug._id ? updatedDrug : drug));
+        if (isEditing) {
+          setDrugs(drugs.map(drug => drug._id === editingDrug._id ? savedDrug : drug));
         } else {
-          setDrugs([updatedDrug, ...drugs]);
+          setDrugs([savedDrug, ...drugs]);
         }
+        
         setShowModal(false);
-        alert(editingDrug ? 'Drug updated successfully!' : 'Drug added successfully!');
+        alert(isEditing ? 'Drug updated successfully!' : 'Drug added successfully!');
+      } else if (response.status === 401) {
+        setError('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       } else {
         const errorData = await response.json();
-        console.error('Save drug error response:', errorData);
+        console.error('❌ Save drug error response:', errorData);
         setError(errorData.message || `Failed to save drug: ${response.status}`);
       }
     } catch (error) {
-      console.error('Save drug error:', error);
+      console.error('❌ Save drug error:', error);
       setError('Network error saving drug. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------------------------
+  // Form Input Handler
+  // ---------------------------
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -204,6 +269,9 @@ const Drugs = () => {
     });
   };
 
+  // ---------------------------
+  // Utility Functions
+  // ---------------------------
   const categories = [...new Set(drugs.map(drug => drug.category).filter(Boolean))];
 
   const filteredDrugs = drugs.filter(drug => {
@@ -242,6 +310,9 @@ const Drugs = () => {
     return drugs.filter(drug => isExpired(drug.expiryDate)).length;
   };
 
+  // ---------------------------
+  // Loading State
+  // ---------------------------
   if (loading && drugs.length === 0) {
     return (
       <div className="drugs">
@@ -255,6 +326,9 @@ const Drugs = () => {
     );
   }
 
+  // ---------------------------
+  // JSX
+  // ---------------------------
   return (
     <div className="drugs">
       <div className="container">
